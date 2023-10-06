@@ -1,0 +1,79 @@
+import random
+
+# Constants
+FRAME_SIZE = 1500  # bytes
+ACK_SIZE = 3  # slots
+SLOT_DURATION = 10  # microseconds
+SIFS_DURATION = 1  # slot
+DIFS_DURATION = 4  # slots
+CW0 = 8  # slots
+CW_MAX = 512  # slots
+MAX_SLOTS = 10000  # Maximum number of slots for the simulation
+BW = 10 * 10**6  # Bandwidth in bps
+SIMULATION_TIME = 10  # seconds
+LAMBDA = 100  # Frames per second (you can adjust this)
+
+# Data structures
+backoff_counter = CW0  # Initial backoff counter
+transmission_buffer = []  # Transmission buffer for station A
+channel_busy = False  # Flag to track channel status
+
+# Metrics
+successful_transmissions = 0
+collisions = 0
+
+# Simulate frame generation for station A
+def generate_frame():
+    if random.random() < (LAMBDA / (BW * 8 * FRAME_SIZE)):
+        return [0] * int(FRAME_SIZE * 8 / SLOT_DURATION)  # Frame as a list of slots
+    else:
+        return None  # No frame generated
+
+# Simulate collision handling
+def simulate_collision():
+    global backoff_counter, collisions
+    collisions += 1
+    backoff_counter = min(2 * backoff_counter, CW_MAX)
+
+# Simulate transmission for station A
+def simulate_transmission():
+    global backoff_counter, channel_busy, successful_transmissions
+    if not channel_busy:
+        frame = generate_frame()
+        if frame:
+            if backoff_counter == 0:
+                # Transmit the frame
+                transmission_time = len(frame) * SLOT_DURATION
+                channel_busy = True
+                backoff_counter = 0
+                successful_transmissions += 1
+                # Simulate ACK reception after SIFS
+                # You can add the ACK logic here
+            else:
+                backoff_counter -= 1
+        else:
+            backoff_counter = max(0, backoff_counter - 1)
+    else:
+        backoff_counter = max(0, backoff_counter - 1)
+
+# Main simulation loop
+for slot in range(MAX_SLOTS):
+    if slot % int(1 / SLOT_DURATION) == 0:
+        # microseconds
+        frame = generate_frame()
+        if frame:
+            transmission_buffer.append(frame)
+
+
+    if transmission_buffer:
+        simulate_transmission()
+    elif channel_busy:
+        channel_busy = False
+        backoff_counter = CW0
+    else:
+        backoff_counter = max(0, backoff_counter - 1)
+
+# Calculate and print metrics
+throughput = (successful_transmissions * FRAME_SIZE * 8) / (SIMULATION_TIME * 10**6)  # Mbps
+print(f"Throughput: {throughput:.2f} Mbps")
+print(f"Collisions: {collisions}")
